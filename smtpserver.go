@@ -1,4 +1,4 @@
-// Handles accepting new connections
+// Handles accepting new SMTP connections
 // and managing the incoming conversations.
 
 package main
