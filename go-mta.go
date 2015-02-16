@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
-	"encoding/gob"
 	"fmt"
 	"net"
+	"runtime"
 	"strings"
 )
 
@@ -29,9 +29,8 @@ func server() {
 }
 
 func handleNewConnection(conn net.Conn) {
+
 	// handle an SMTP Conversation
-//	msg := make([]byte, 1)
-	// Connect
 
 	// HELO
 	fmt.Println("RESPONDING 250 HELO")
@@ -44,60 +43,72 @@ func handleNewConnection(conn net.Conn) {
 	status, _ = bufio.NewReader(conn).ReadString('\n')
 	fmt.Println("Received", status)
 
-	// RCPT TO
-	conn.Write([]byte("250 OK\r\n"))
-	status, _ = bufio.NewReader(conn).ReadString('\n')
-	fmt.Println("Received", status)
-
-
-	// DATA
-	conn.Write([]byte("250 OK\r\n"))
-	status, _ = bufio.NewReader(conn).ReadString('\n')
-	fmt.Println("Received", status)
-
-	conn.Write([]byte("354 End data with <CR><LF>.<CR><LF>\r\n"))
-
-	endOfData := false
+	Connection:
 	for {
-		msg := make([]byte, 256)
 
-		bytesRead, err := conn.Read(msg)
-		data := string(msg[:])
-		fmt.Println("Received", data)
-		lines := strings.Split(data, "\r\n")
+		// RCPT TO
+		conn.Write([]byte("250 OK\r\n"))
+		status, _ = bufio.NewReader(conn).ReadString('\n')
+		fmt.Println("Received", status)
 
-		fmt.Println("Last line: [", lines[len(lines)-1], "]")
-		for _, line := range lines {
-			if line == "." {
-				endOfData = true
+
+		// DATA
+		conn.Write([]byte("250 OK\r\n"))
+		status, _ = bufio.NewReader(conn).ReadString('\n')
+		fmt.Println("Received", status)
+
+		conn.Write([]byte("354 End data with <CR><LF>.<CR><LF>\r\n"))
+
+		endOfData := false
+		for {
+			msg := make([]byte, 256)
+
+			bytesRead, err := conn.Read(msg)
+			data := string(msg[:])
+			fmt.Println("Received", data)
+			lines := strings.Split(data, "\r\n")
+
+			fmt.Println("Last line: [", lines[len(lines)-1], "]")
+			for _, line := range lines {
+				if line == "." {
+					endOfData = true
+					break
+				}
+			}
+			if endOfData {
+				fmt.Println("Received terminating line, done reading DATA")
+				break
+			}
+			if bytesRead == 0 {
+				fmt.Println("No bytes read, finished reading DATA.")
+				break Connection
+			}
+			if err != nil {
+				fmt.Println("Err: ", err)
 				break
 			}
 		}
-		if endOfData {
-			fmt.Println("Received terminating line, done reading DATA")
-			break
-		}
-		if bytesRead == 0 {
-			fmt.Println("No bytes read, finished reading DATA.")
-			break
-		}
-		if err != nil {
-			fmt.Println("Err: ", err)
+		fmt.Println("Acknowledging end of DATA.")
+
+		conn.Write([]byte("250 OK\r\n"))
+		status, _ = bufio.NewReader(conn).ReadString('\n')
+		fmt.Println("Received", status)
+
+
+		if strings.Index(status, "MAIL FROM") == 0 {
+			fmt.Println("Detected new message on single connection.")
+			continue Connection
+		} else if status == "QUIT\r\n" {
+			// QUIT
+			conn.Write([]byte("221 localhost Service closing transmission channel.\r\n"))
+			conn.Close()
 			break
 		}
 	}
-	fmt.Println("Acknowledging end of DATA.")
-
-	// QUIT
-	conn.Write([]byte("250 OK\r\n"))
-	status, _ = bufio.NewReader(conn).ReadString('\n')
-	fmt.Println("Received", status)
-
-	conn.Write([]byte("221 localhost Service closing transmission channel.\r\n"))
-	conn.Close()
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	fmt.Println("Starting the Go MTA Server.\n")
 
 	go server()
