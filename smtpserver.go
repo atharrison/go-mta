@@ -10,7 +10,11 @@ import (
 	"strings"
 )
 
-func server() {
+type SmtpServer struct {
+	conn net.Conn
+}
+
+func startSmtpServerListener() {
 	// listen on a port
 	ln, err := net.Listen("tcp", ":9999")
 	if err != nil {
@@ -19,20 +23,29 @@ func server() {
 	}
 	for {
 		// accept a connection
-		c, err := ln.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
 			Error.Println(err)
 			continue
 		}
 		// handle the connection
-		Info.Println("Accepting new Connection. Starting new handleNewConnection goroutine.")
-		go handleNewConnection(c)
+		Info.Println("Accepting new Connection, placing on SmtpServer on Channel.")
+		server := &SmtpServer{conn}
+		smtpServerChan <- server
 	}
 }
 
-func handleNewConnection(conn net.Conn) {
+func handleSmtpServerConnections() {
+	Info.Println("SmtpServer Connection Handler Started.")
+	for {
+		// handle an SMTP Conversation
+		server := <-smtpServerChan
+		Info.Println("Received new SmtpServer, processing inbound SMTP Conversation.")
+		receiveSmtp(server.conn)
+	}
+}
 
-	// handle an SMTP Conversation
+func receiveSmtp(conn net.Conn) {
 
 	remoteIp := conn.RemoteAddr()
 	Info.Println("Received Connection from [", remoteIp, "]")
@@ -54,7 +67,7 @@ func handleNewConnection(conn net.Conn) {
 	mailFrom := strings.Trim(strings.SplitN(status, "MAIL FROM:", 2)[1], "\r\n")
 	Debug.Println("MailFrom:", mailFrom)
 
-    Connection:
+Connection:
 	for {
 
 		// RCPT TO
@@ -130,5 +143,3 @@ func handleNewConnection(conn net.Conn) {
 		}
 	}
 }
-
-

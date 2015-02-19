@@ -10,6 +10,8 @@ import (
 )
 
 func Init(
+
+	// Build Loggers
     traceHandle io.Writer,
 	debugHandle io.Writer,
 	infoHandle io.Writer,
@@ -35,7 +37,15 @@ func Init(
 	Error = log.New(errorHandle,
 		"ERROR: ",
 				log.Ldate|log.Ltime|log.Lshortfile)
+
+	// Create channels
+	smtpServerChan = make(chan *SmtpServer)
+	smtpClientChan = make(chan *SmtpClient)
+
 }
+
+var smtpServerChan chan *SmtpServer
+var smtpClientChan chan *SmtpClient
 
 func main() {
 //	Init(ioutil.Discard, ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
@@ -45,7 +55,11 @@ func main() {
 	Info.Println("Starting the Go MTA Server.\n")
 
 	// Start the Server listener
-	go server()
+	go startSmtpServerListener()
+
+	// Handle new server connections
+	go handleSmtpServerConnections()
+	go handleSmtpClientConnections()
 
 	// Die after input is read.
 	var input string
