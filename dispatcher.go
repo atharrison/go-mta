@@ -1,9 +1,8 @@
 package main
 
-import "fmt"
-
 func handleEnvelope(env envelope) {
-	fmt.Println("Received Envelope:", env)
+	Info.Println("Dispatcher dispatching message...")
+	Debug.Println("Received Envelope:", env)
 
 	go send(env)
 }
