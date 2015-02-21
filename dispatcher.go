@@ -4,7 +4,15 @@ import (
 	"net"
 )
 
-func handleEnvelope(env envelope) {
+func handleDispatcher(envelopeChan chan *envelope, smtpClientChan chan *SmtpClient) {
+	Info.Println("Dispatcher Handler Started.")
+	for {
+		env := <-envelopeChan
+		handleEnvelope(env, smtpClientChan)
+	}
+}
+
+func handleEnvelope(env *envelope, smtpClientChan chan *SmtpClient) {
 	Info.Println("Dispatcher dispatching message...")
 	Debug.Println("Received Envelope:", env)
 

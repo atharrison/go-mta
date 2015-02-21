@@ -38,28 +38,37 @@ func Init(
 		"ERROR: ",
 				log.Ldate|log.Ltime|log.Lshortfile)
 
-	// Create channels
-	smtpServerChan = make(chan *SmtpServer)
-	smtpClientChan = make(chan *SmtpClient)
-
 }
 
-var smtpServerChan chan *SmtpServer
-var smtpClientChan chan *SmtpClient
+const SmtpServerConnectionCount = 30
+const SmtpClientConnectionCount = 30
+const DispatcherThreads = 30
 
 func main() {
 //	Init(ioutil.Discard, ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
 	Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stdout, os.Stderr)
 
+	// Create channels
+	smtpServerChan := make(chan *SmtpServer)
+	envelopeChan := make(chan *envelope)
+	smtpClientChan := make(chan *SmtpClient)
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	Info.Println("Starting the Go MTA Server.\n")
 
 	// Start the Server listener
-	go startSmtpServerListener()
+	go startSmtpServerListener(smtpServerChan)
 
 	// Handle new server connections
-	go handleSmtpServerConnections()
-	go handleSmtpClientConnections()
+	for i := 0; i < SmtpServerConnectionCount; i++ {
+		go handleSmtpServerConnections(smtpServerChan, envelopeChan)
+	}
+	for i := 0; i < DispatcherThreads; i++ {
+		go handleDispatcher(envelopeChan, smtpClientChan)
+	}
+	for i := 0; i < SmtpClientConnectionCount; i++ {
+		go handleSmtpClientConnections(smtpClientChan)
+	}
 
 	// Die after input is read.
 	var input string

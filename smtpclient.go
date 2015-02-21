@@ -10,10 +10,10 @@ import (
 
 type SmtpClient struct {
 	conn net.Conn
-	env envelope
+	env *envelope
 }
 
-func handleSmtpClientConnections() {
+func handleSmtpClientConnections(smtpClientChan chan *SmtpClient) {
 	Info.Println("SmtpClient Connection Handler Started.")
 	for {
 		smtpClient := <-smtpClientChan
@@ -22,7 +22,7 @@ func handleSmtpClientConnections() {
 	}
 }
 
-func sendSmtp(conn net.Conn, env envelope) {
+func sendSmtp(conn net.Conn, env *envelope) {
 	conn.Write([]byte("HELO go-smtpclient\r\n"))
 	status, _ := bufio.NewReader(conn).ReadString('\n')
 	Debug.Println("<--client ", status)

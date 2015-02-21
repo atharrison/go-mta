@@ -14,7 +14,7 @@ type SmtpServer struct {
 	conn net.Conn
 }
 
-func startSmtpServerListener() {
+func startSmtpServerListener(smtpServerChan chan *SmtpServer) {
 	// listen on a port
 	ln, err := net.Listen("tcp", ":9999")
 	if err != nil {
@@ -35,17 +35,17 @@ func startSmtpServerListener() {
 	}
 }
 
-func handleSmtpServerConnections() {
+func handleSmtpServerConnections(smtpServerChan chan *SmtpServer, envelopeChan chan *envelope) {
 	Info.Println("SmtpServer Connection Handler Started.")
 	for {
 		// handle an SMTP Conversation
-		server := <-smtpServerChan
+		server := <- smtpServerChan
 		Info.Println("Received new SmtpServer, processing inbound SMTP Conversation.")
-		receiveSmtp(server.conn)
+		receiveSmtp(server.conn, envelopeChan)
 	}
 }
 
-func receiveSmtp(conn net.Conn) {
+func receiveSmtp(conn net.Conn, envelopeChan chan *envelope) {
 
 	remoteIp := conn.RemoteAddr()
 	Info.Println("Received Connection from [", remoteIp, "]")
@@ -128,7 +128,7 @@ Connection:
 
 		env.rawBody = rawBody.String()
 
-		go handleEnvelope(env)
+		envelopeChan <- &env
 
 		if strings.Index(status, "MAIL FROM") == 0 {
 			Debug.Println("Detected new message on single connection.")
