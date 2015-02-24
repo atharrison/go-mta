@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 )
 
 func Init(
@@ -56,13 +57,15 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	Info.Println("Starting the Go MTA Server.\n")
 
+	service := NewServiceHandler()
+
 	// Start the Server listener
 	cl := NewConnectionListener(smtpServerChan)
 	go cl.start()
 
 	// Handle new server connections
 	for i := 0; i < SmtpServerConnectionCount; i++ {
-		go handleSmtpServerConnections(smtpServerChan, envelopeChan)
+		go service.handleSmtpServerConnections(smtpServerChan, envelopeChan)
 	}
 	for i := 0; i < DispatcherThreads; i++ {
 		go handleDispatcher(envelopeChan, smtpClientChan)
@@ -71,7 +74,11 @@ func main() {
 		go handleSmtpClientConnections(smtpClientChan)
 	}
 
-	// Die after input is read.
-	var input string
-	fmt.Scanln(&input)
+	// Handle SIGINT and SIGTERM.
+	signalCh := make(chan os.Signal)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+	Info.Println(<-signalCh)
+
+	// Stop the service gracefully.
+	service.Stop()
 }
