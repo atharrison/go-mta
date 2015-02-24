@@ -8,23 +8,44 @@ import (
 	"bytes"
 	"net"
 	"strings"
+//	"time"
 )
 
 type SmtpServer struct {
 	conn net.Conn
 }
 
-func handleSmtpServerConnections(smtpServerChan chan *SmtpServer, envelopeChan chan *envelope) {
+func (sh ServiceHandler) handleSmtpServerConnections(smtpServerChan chan *SmtpServer,
+	                                                 envelopeChan chan *envelope) {
 	Info.Println("SmtpServer Connection Handler Started.")
 	for {
-		// handle an SMTP Conversation
-		server := <- smtpServerChan
-		Info.Println("Received new SmtpServer, processing inbound SMTP Conversation.")
-		receiveSmtp(server.conn, envelopeChan)
+		select {
+		case <-sh.ch:
+			Info.Println("Terminating SmtpServer Connection Handler.")
+			return
+		case server := <- smtpServerChan:
+			// handle an SMTP Conversation
+			sh.addWatchedProcess()
+			Info.Println("Received new SmtpServer, processing inbound SMTP Conversation.")
+			receiveSmtp(server.conn, envelopeChan)
+			sh.finishProcess()
+		}
 	}
 }
 
+//func receiveWithTimeout(conn net.Conn, envelopeChan chan *envelope) {
+//
+//	timeoutChan := make(chan bool, 1)
+//	go func() {
+//		time.Sleep(3 * time.Second)
+//		timeoutChan <- true
+//	}()
+//
+//	receiveSmtp(conn, envelopeChan, timeoutChan)
+//}
+
 func receiveSmtp(conn net.Conn, envelopeChan chan *envelope) {
+
 
 	remoteIp := conn.RemoteAddr()
 	Info.Println("Received Connection from [", remoteIp, "]")
