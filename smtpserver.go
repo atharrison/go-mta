@@ -14,27 +14,6 @@ type SmtpServer struct {
 	conn net.Conn
 }
 
-func startSmtpServerListener(smtpServerChan chan *SmtpServer) {
-	// listen on a port
-	ln, err := net.Listen("tcp", ":9999")
-	if err != nil {
-		Error.Println(err)
-		return
-	}
-	for {
-		// accept a connection
-		conn, err := ln.Accept()
-		if err != nil {
-			Error.Println(err)
-			continue
-		}
-		// handle the connection
-		Info.Println("Accepting new Connection, placing on SmtpServer on Channel.")
-		server := &SmtpServer{conn}
-		smtpServerChan <- server
-	}
-}
-
 func handleSmtpServerConnections(smtpServerChan chan *SmtpServer, envelopeChan chan *envelope) {
 	Info.Println("SmtpServer Connection Handler Started.")
 	for {

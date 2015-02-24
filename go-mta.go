@@ -23,7 +23,7 @@ func Init(
 				log.Ldate|log.Ltime|log.Lshortfile)
 
 	Debug = log.New(debugHandle,
-		"TRACE: ",
+		"DEBUG: ",
 				log.Ldate|log.Ltime|log.Lshortfile)
 
 	Info = log.New(infoHandle,
@@ -57,7 +57,8 @@ func main() {
 	Info.Println("Starting the Go MTA Server.\n")
 
 	// Start the Server listener
-	go startSmtpServerListener(smtpServerChan)
+	cl := NewConnectionListener(smtpServerChan)
+	go cl.start()
 
 	// Handle new server connections
 	for i := 0; i < SmtpServerConnectionCount; i++ {
